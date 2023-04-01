@@ -40,125 +40,129 @@
          01.04.2023 / tonitu
 
        Version history:
+        
 
 **********************************************************************/
 
 /*-------------------------------------------------------------------*
 *    HEADER FILES                                                    *
 *--------------------------------------------------------------------*/
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <stdbool.h>
-#include <string.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <stdbool.h>
+ #include <time.h>
+ #include <string.h>
 
 /*-------------------------------------------------------------------*
 *    GLOBAL VARIABLES AND CONSTANTS                                  *
 *--------------------------------------------------------------------*/
 /* Control flags */
-#define DEBUG 
+ #define DEBUG 
 
 /* Global constants */
 
 /* Global variables */
-
-// [0] = xsize, [1] = ysize
-int *xy_size[2]; 
-
-/* Global structures */
-struct cell
-{
-    int current;
-    int future;
-    char *color;
-};
-
-struct cell **board; 
+ #define RED "\033[0;31m"
+ #define GREEN "\033[0;32m"
+ #define BLUE "\033[0;34m"
+ #define BRIGHT_WHITE "\033[1;37m"
+ #define RESET_COLOR "\033[0m"
+ 
+ int *xy_size[2]; // [0] = xsize, [1] = ysize
+ 
+ /* Global structures */
+ struct cell
+ {
+     int current;
+     int future;
+     char *color;
+ };
+ 
+ struct cell **board; 
 
 /*-------------------------------------------------------------------*
 *    FUNCTION PROTOTYPES                                             *
 *--------------------------------------------------------------------*/
 
-void printInstructions(char state[]);
-void startGameOfLife(int delay_time);
-int calculateFuture(void);
-int countNeighbours(int x, int y);
+ // Game of life
 
-void printState(void);
-void printCellState(bool alive_or_dead, char color);
+    void startGameOfLife(int delay_time);
 
-void delay(int milliseconds);
-void readGameFromFile(void);
-bool allocateMemory(int x_size, int y_size);
-void deAllocateMemory(void);
-char ask_command(void);
-int ask_integer(void);
-void clear_input_buffer(void);
+ // Game state / logic
+
+    int countNeighbours(int x, int y);
+    void printState(void);
+    void printCellState(bool alive_or_dead, char color);
+    int calculateFuture(void);
+
+ // Memory allocation and stream clear
+
+    bool allocateMemory(int x_size, int y_size);
+    void deAllocateMemory(void);
+    void clear_input_buffer(void);
+
+ // User input functions
+
+    char ask_command(void);
+    int ask_integer(void);
+    void readGameFromFile(void);
+
+ // Other
+
+    void printInstructions(char state[]);
+    void delay(int milliseconds);
 
 /*********************************************************************
 *    MAIN PROGRAM                                                      *
 **********************************************************************/
 int main(void)
 {
-    /*
-    board[0][0].current = 1;
-
-    
-    board[1][1].current = 1;
-    board[1][2].current = 1;
-    board[2][2].current = 1;
-    board[3][3].current = 1;
-    board[4][3].current = 1;
-    */
-
-    allocateMemory(10, 10);
-
-    board[3][3].current = 1;
-    board[4][3].current = 1;
-    board[5][4].current = 1;
-
     printInstructions("welcome");
 
+    int time = 500, x = 10, y = 10;
     char command;
+
     do 
     {
         command = ask_command();
         
         switch (command) 
         {
-            case 'A':
+            case 'A': // GAME OF LIFE
                 printInstructions("gameoflife");
-
-                /* Do stuff later
-                    printf("Enter x and y values: ");
-                    allocateMemory(ask_integer(), ask_integer()); // Initialize board with size of user input
-
-                    printf("\nEnter time in milliseconds: ");
-                    startGameOfLife(ask_integer()); // start the game with delay time in milliseconds
+                
+                // try to initialize board with x, y values.
+                if (allocateMemory(x, y) == true)
+                {
+                    startGameOfLife(time);
                     deAllocateMemory();
-                */
+                    break;
+                }
+                // If memory allocation failed
+                else
+                {
+                    // Print instructions to user and do not break to go to settings.
+                    printf("%sPlease modify settings:%s\n", RED, RESET_COLOR);
+                }
 
+            case 'B': // SETTINGS
+                printf("settings");
                 break;
-            case 'B':
-                printf("read f");
-                break;
-            case 'C':
+            case 'C': // SHOW HIGHSCORE
                 printf("show highscore");
                 break;
-            case '?':
-                printf("\033[0;31m"); // set text color to red
-                printf("Input buffer exceeded. Please try again.");
+            case '?': // INPUT BUFFER EXCEEDED
+                printf("%sInput buffer exceeded. Please try again.", RED);
                 break;
-            case 'X':
+            case 'X': // EXIT
                 printf("Bye :)");
                 break;
-            default:
-                printf("\033[0;31m"); // set text color to red
-                printf("Invalid command. Please try again.");
+            default: // INVALID COMMAND
+                printf("%sInvalid command. Please try again.", RED);
                 break;
         }
 
-        printf("\033[0m"); // reset text color to default
+        printf("%s", RESET_COLOR);
         printf("\n");
 
     } while (command != 'X');
@@ -172,20 +176,20 @@ int main(void)
 
 /*********************************************************************
  NAME: ask_command
- DESCRIPTION: Reads user character input 
+ DESCRIPTION: returns user character input 
 	Input: -
 	Output: c[0], '?'
-  Used global variables: -
+  Used global variables: Colors
  REMARKS when using this function: expects empty input buffer at first. User can only enter 1 character
 *********************************************************************/
 char ask_command(void)
 {
-    printf("\033[0;32m> "); // green
+    printf("%s> ", GREEN);
     char c[3];
 
-    printf("\033[1;37m"); // bright white
+    printf("%s", BRIGHT_WHITE);
     fgets(c, 3, stdin);
-    printf("\033[0m"); // default
+    printf("%s", RESET_COLOR);
 
     // Only return first element if input buffer is not exceeded
     if (c[strlen(c)-1] == '\n') 
@@ -193,7 +197,7 @@ char ask_command(void)
         return toupper(c[0]);
     } 
     // else return ? to indicate input buffer exceed 
-    else
+    else 
     {
         clear_input_buffer();
         return '?';
@@ -202,7 +206,7 @@ char ask_command(void)
 
 /*********************************************************************
  NAME: ask_integer
- DESCRIPTION: Reads user integer input 
+ DESCRIPTION: returns user integer input 
 	Input: -
 	Output: integer
   Used global variables: -
@@ -219,16 +223,23 @@ int ask_integer(void)
 
 /*********************************************************************
  NAME: startGameOfLife
- DESCRIPTION: runs 
-	Input: -
+ DESCRIPTION: Runs the game and displays game state to user
+	Input: delay_time
 	Output: actions (how many cell's states were changed)
-  Used global variables: y_size, x_size
- REMARKS when using this function: -
+  Used global variables: -
+ REMARKS when using this function: Board should be initialized beforehand 
 *********************************************************************/
 void startGameOfLife(int delay_time)
 {
     int actions = 0, action_count = 0, gen = 0;
+
+    board[1][1].current = 1;
+    board[1][2].current = 1;
+    board[2][2].current = 1;
+    board[3][3].current = 1;
+    board[4][3].current = 1;
     
+    // Print state until there is no future
     while ((actions = calculateFuture()) != 0)
     {
         printf("\n");
@@ -246,7 +257,7 @@ void startGameOfLife(int delay_time)
 
 /*********************************************************************
  NAME: calculateFuture
- DESCRIPTION: checks cell current status and set the future status
+ DESCRIPTION: Set the future status of cells
 	Input: -
 	Output: actions (how many cell's states were changed)
   Used global variables: y_size, x_size
@@ -267,19 +278,19 @@ int calculateFuture(void)
                 if (countNeighbours(x, y) < 2)
                 {
                     board[x][y].future = 0; 
-                    board[x][y].color = 'r';
+                    board[x][y].color = 'r';  // red
                     actions++;
                 }
                 else if (countNeighbours(x, y) > 3)
                 {
                     board[x][y].future = 0; 
-                    board[x][y].color = 'r';
+                    board[x][y].color = 'r'; // red
                     actions++;
                 }
                 else
                 {
                     board[x][y].future = 1;
-                    board[x][y].color = 'g';
+                    board[x][y].color = 'g'; // green
                 }
             }
             // If cell dead
@@ -289,7 +300,7 @@ int calculateFuture(void)
                 if (countNeighbours(x, y) > 2)
                 {
                     board[x][y].future = 1;
-                    board[x][y].color = 'g';
+                    board[x][y].color = 'g'; // green
                     actions++;
                 }
             }
@@ -353,16 +364,17 @@ int countNeighbours(int cellx, int celly)
 
 /*********************************************************************
  NAME: printState
- DESCRIPTION: Iterates through all cells, printf's their current status on the screen, then updates current status to the future status.
+ DESCRIPTION: displays/prints game state to user, and updates future state.
 	Input: -
 	Output: -
-  Used global variables: y_size, x_size
- REMARKS when using this function: Cell's future should be set beforehand.
+  Used global variables:
+ REMARKS when using this function: Cell's future should be calculated beforehand.
 *********************************************************************/
 void printState()
 {
     int x, y;
 
+    // Iterate through all cells and print their current status
     for (y = 0; y < *xy_size[0]; y++)
     {
         for (x = 0; x < *xy_size[1]; x++)
@@ -390,40 +402,40 @@ void printState()
  DESCRIPTION: Prints 'O' or '.' with the correct color 
 	Input: alive_or_dead, color
 	Output: -
-  Used global variables: -
- REMARKS when using this function: -
+  Used global variables: colors
+ REMARKS when using this function: input cell state and color, function prints character
 *********************************************************************/
 void printCellState(bool alive_or_dead, char color) 
 {
-    // check color
-    if (color == NULL)
+    // error check color just in case
+    if (color != NULL)
     {
+        if (color == 'r')
+        {
+            printf("%s", RED);
+        }
+        else if (color == 'g')
+        {
+            printf("%s", GREEN);
+        }
+        else
+        {
+            printf("%s", RESET_COLOR);
+        }
+        // syntax: variable ? 'true' : 'false' || same as: if (variable == 1) .. else ..
         printf("%c", alive_or_dead ? 'O' : '.');
     }
     else
     {
-        if (color == 'r')
-        {
-            printf("\033[0;31m");
-        }
-        else if (color == 'g')
-        {
-            printf("\033[0;32m");
-        }
-        else
-        {
-            printf("\033[0m");
-        }
         printf("%c", alive_or_dead ? 'O' : '.');
     }
-    // syntax: variable ? 'true' : 'false' || same as: if (variable == 1) .. else ..
-    printf("\033[0m");
+    printf("%s", RESET_COLOR);
 }
 
 /*********************************************************************
  NAME: delay
  DESCRIPTION: Adds delay with clock_t in the time.h library
-	Input: number_of_seconds
+	Input: milliseconds
 	Output: -
   Used global variables: -
  REMARKS when using this function: -
@@ -438,12 +450,12 @@ void delay(int milliseconds)
 }
 
 /*********************************************************************
- NAME: askBoard
- DESCRIPTION: 
-	Input: 
+ NAME: printInstructions
+ DESCRIPTION: prints instructions to user
+	Input: string
 	Output: -
   Used global variables: -
- REMARKS when using this function: -
+ REMARKS when using this function: string is passed to print corresponding instructions ("state")
 *********************************************************************/
 void printInstructions(char state[])
 {
@@ -451,9 +463,8 @@ void printInstructions(char state[])
     {
         printf("Welcome to my program\n");
         printf("What would you like to do?\n");
-        printf("\033[0;34m"); // Blue
-        printf(" A) Play game\n");
-        printf(" B) Play game from file\n");
+        printf("%s A) Play game\n", BLUE);
+        printf(" B) Settings\n");
         printf(" C) Show highscore\n");
         printf(" X) Exit program\n\n");
     }
@@ -471,14 +482,18 @@ void printInstructions(char state[])
 
 /*********************************************************************
  NAME: allocateMemory
- DESCRIPTION: Dynamically allocates memory for global variable xyMemory
+ DESCRIPTION: Dynamically allocates memory for global: struct cell and *xy_size
 	Input: 
 	Output: -
   Used global variables: -
- REMARKS when using this function: -
+ REMARKS when using this function: takes size of the board as arguments, and uses malloc to initialize/set each value
 *********************************************************************/
 bool allocateMemory(int x_size, int y_size)
 {
+    // Check that x and y values fall between a certain range.
+    if (x_size < 1 || y_size < 1 || x_size > 1000 || y_size > 1000)
+        return false;
+
     // Allocate for integer size
     xy_size[0] = (int*) malloc(sizeof(int));
     xy_size[1] = (int*) malloc(sizeof(int));
@@ -529,10 +544,10 @@ bool allocateMemory(int x_size, int y_size)
 /*********************************************************************
  NAME: deAllocateMemory
  DESCRIPTION: deallocates memory
-	Input: 
+	Input: -
 	Output: -
   Used global variables: -
- REMARKS when using this function: -
+ REMARKS when using this function: deallocates memory created in allocateMemory()
 *********************************************************************/
 void deAllocateMemory(void)
 {
