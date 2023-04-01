@@ -40,7 +40,7 @@
          01.04.2023 / tonitu
 
        Version history:
-        
+
 
 **********************************************************************/
 
@@ -66,6 +66,8 @@
  #define GREEN "\033[0;32m"
  #define BLUE "\033[0;34m"
  #define BRIGHT_WHITE "\033[1;37m"
+ #define YELLOW "\033[0;33m"
+ #define MAGENTA "\033[0;35m"
  #define RESET_COLOR "\033[0m"
  
  int *xy_size[2]; // [0] = xsize, [1] = ysize
@@ -110,6 +112,7 @@
  // Other
 
     void printInstructions(char state[]);
+    void modifySettings(void);
     void delay(int milliseconds);
 
 /*********************************************************************
@@ -117,6 +120,7 @@
 **********************************************************************/
 int main(void)
 {
+    printf("Welcome to my program\n");
     printInstructions("welcome");
 
     int time = 500, x = 10, y = 10;
@@ -144,12 +148,15 @@ int main(void)
                     // Print instructions to user and do not break to go to settings.
                     printf("%sPlease modify settings:%s\n", RED, RESET_COLOR);
                 }
-
             case 'B': // SETTINGS
-                printf("settings");
+                modifySettings();
+                command = 'H';
                 break;
             case 'C': // SHOW HIGHSCORE
                 printf("show highscore");
+                break;
+            case 'H':
+                printInstructions("welcome");
                 break;
             case '?': // INPUT BUFFER EXCEEDED
                 printf("%sInput buffer exceeded. Please try again.", RED);
@@ -260,7 +267,7 @@ void startGameOfLife(int delay_time)
  DESCRIPTION: Set the future status of cells
 	Input: -
 	Output: actions (how many cell's states were changed)
-  Used global variables: y_size, x_size
+  Used global variables: -
  REMARKS when using this function: -
 *********************************************************************/
 int calculateFuture(void)
@@ -314,7 +321,7 @@ int calculateFuture(void)
  DESCRIPTION: Calculates number of cells alive around you within boundaries.
 	Input: cellx, celly
 	Output: count
-  Used global variables: y_size, x_size
+  Used global variables: -
  REMARKS when using this function: -
 *********************************************************************/
 int countNeighbours(int cellx, int celly)
@@ -367,7 +374,7 @@ int countNeighbours(int cellx, int celly)
  DESCRIPTION: displays/prints game state to user, and updates future state.
 	Input: -
 	Output: -
-  Used global variables:
+  Used global variables: *xy_size
  REMARKS when using this function: Cell's future should be calculated beforehand.
 *********************************************************************/
 void printState()
@@ -454,29 +461,53 @@ void delay(int milliseconds)
  DESCRIPTION: prints instructions to user
 	Input: string
 	Output: -
-  Used global variables: -
+  Used global variables: colors
  REMARKS when using this function: string is passed to print corresponding instructions ("state")
 *********************************************************************/
 void printInstructions(char state[])
 {
     if (state == "welcome")
     {
-        printf("Welcome to my program\n");
         printf("What would you like to do?\n");
-        printf("%s A) Play game\n", BLUE);
+        printf("%s A) Play game\n", MAGENTA);
         printf(" B) Settings\n");
         printf(" C) Show highscore\n");
-        printf(" X) Exit program\n\n");
+        printf(" H) Show this menu\n");
+        printf(" X) Exit program\n");
     }
     else if (state == "gameoflife")
     {
         printf("\nThis is the GAME OF LIFE.\n");
         printf("The rules are simple:\n");
-        printf("\t- Each cell with one or no neighbours' dies, as if by loneliness.\n");
+        printf("%s\t- Each cell with one or no neighbours' dies, as if by loneliness.\n", YELLOW);
         printf("\t- Each cell with four or more neighbours dies, as if by overpopulation.\n");
         printf("\t- Each cell with two or three neighbours survives.\n");
-        printf("\t- Each cell with three neighbours becomes populated. (unpopulated spaces)\n");
+        printf("\t- Each cell with three neighbours becomes populated. (unpopulated spaces)%s\n", RESET_COLOR);
         printf("Lets start?\n\n");
+    }
+    else if (state == "settings")
+    {
+        printf("\nSettings\n");
+        printf("%sA) Help!!\n", MAGENTA);
+        printf("B) Read gamestate from file\n");
+        printf("C) Paste gamestate as string\n");
+        printf("D) Randomize gamestate\n");
+        printf("X) Back%s\n\n", RESET_COLOR);
+    }
+    else if (state == "settingshelp")
+    {
+        printf("%sB) Read gamestate from file\n", MAGENTA);
+        printf("\t%s- use: %s\n\n", YELLOW, MAGENTA);
+        printf("C) Paste gamestate as string\n");
+        printf("\t%s- use: paste string with ctrl+v or shift+insert\n", YELLOW);
+        printf("\t- Format: (note: end with 'e')\n");
+        printf("\t  ....o\n");
+        printf("\t  .oo..\n");
+        printf("\t  .....%s\n\n", MAGENTA);
+        printf("D) Randomize gamestate\n");
+        printf("\t%s- This will generate a random size. Delay time default is 500ms / 0.5s\n\n", YELLOW);
+        printf("%sX) Go back to previous menu%s\n", MAGENTA, RESET_COLOR);
+        
     }
 }
 
@@ -485,7 +516,7 @@ void printInstructions(char state[])
  DESCRIPTION: Dynamically allocates memory for global: struct cell and *xy_size
 	Input: 
 	Output: -
-  Used global variables: -
+  Used global variables: *xy_size, **board
  REMARKS when using this function: takes size of the board as arguments, and uses malloc to initialize/set each value
 *********************************************************************/
 bool allocateMemory(int x_size, int y_size)
@@ -546,7 +577,7 @@ bool allocateMemory(int x_size, int y_size)
  DESCRIPTION: deallocates memory
 	Input: -
 	Output: -
-  Used global variables: -
+  Used global variables: *xy_size, **board
  REMARKS when using this function: deallocates memory created in allocateMemory()
 *********************************************************************/
 void deAllocateMemory(void)
@@ -582,6 +613,77 @@ void clear_input_buffer(void)
 }
 
 /*********************************************************************
+ NAME: modifySettings()
+ DESCRIPTION: 
+	Input: 
+	Output: -
+  Used global variables: -
+ REMARKS when using this function: -
+*********************************************************************/
+void modifySettings(void)
+{
+    printInstructions("settings");
+    char command;
+    do 
+    {
+        command = ask_command();
+        
+        switch (command) 
+        {
+            case 'A': // HELP
+                printInstructions("settingshelp");
+                break;
+            case 'B': // READ FILE
+                gameSettings("file");
+                break;
+            case 'C': // PASTE STRING
+                gameSettings("string");
+                break;
+            case 'D': // RANDOMIZE
+                gameSettings("random");
+                break;
+            case '?': // INPUT BUFFER EXCEEDED
+                printf("%sInput buffer exceeded. Please try again.", RED);
+                break;
+            case 'X': // EXIT
+                printf("Bye :)");
+                break;
+            default: // INVALID COMMAND
+                printf("%sInvalid command. Please try again.", RED);
+                break;
+        }
+
+        printf("%s", RESET_COLOR);
+        printf("\n");
+
+    } while (command != 'X');
+}
+
+/*********************************************************************
+ NAME: gameSettings
+ DESCRIPTION: 
+	Input: 
+	Output: -
+  Used global variables: -
+ REMARKS when using this function: -
+*********************************************************************/
+void gameSettings(char string[])
+{
+    if (string == "file")
+    {
+        readGameFromFile();
+    }
+    else if (string == "random")
+    {
+
+    }
+    else if (string == "string")
+    {
+
+    }
+}
+
+/*********************************************************************
  NAME: readGameFromFile
  DESCRIPTION: 
 	Input: 
@@ -591,5 +693,5 @@ void clear_input_buffer(void)
 *********************************************************************/
 void readGameFromFile(void)
 {
-
+    
 }
