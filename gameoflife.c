@@ -52,6 +52,7 @@
  #include <stdbool.h>
  #include <time.h>
  #include <string.h>
+ #include <ctype.h>
 
 /*-------------------------------------------------------------------*
 *    GLOBAL VARIABLES AND CONSTANTS                                  *
@@ -60,8 +61,6 @@
  #define DEBUG 
 
 /* Global constants */
-
-/* Global variables */
  #define RED "\033[0;31m"
  #define GREEN "\033[0;32m"
  #define BLUE "\033[0;34m"
@@ -69,15 +68,19 @@
  #define YELLOW "\033[0;33m"
  #define MAGENTA "\033[0;35m"
  #define RESET_COLOR "\033[0m"
- 
- int *xy_size[2]; // [0] = xsize, [1] = ysize
+
+/* Global variables */
+ int xy_size[2] = {10, 10}; // BOARD SIZE. [0] = x, [1] = y, maxsize 100
+ int alive_cells[100][100] = {0}; // Alive cells. maxsize 100
+ char alive_char = 'O'; // default character used for alive cells
+ char dead_char = '.'; // default character used for dead cells
  
  /* Global structures */
  struct cell
  {
      int current;
      int future;
-     char *color;
+     char color;
  };
  
  struct cell **board; 
@@ -99,7 +102,7 @@
 
  // Memory allocation and stream clear
 
-    bool allocateMemory(int x_size, int y_size);
+    bool allocateMemory();
     void deAllocateMemory(void);
     void clear_input_buffer(void);
 
@@ -107,7 +110,7 @@
 
     char ask_command(void);
     int ask_integer(void);
-    void readGameFromFile(void);
+    bool readGameFromFile(void);
 
  // Other
 
@@ -120,12 +123,13 @@
 **********************************************************************/
 int main(void)
 {
-    printf("Welcome to my program\n");
+    printf("Welcome to my program");
     printInstructions("welcome");
 
-    int time = 500, x = 10, y = 10;
+    int time = 500;
     char command;
 
+    readGameFromFile();
     do 
     {
         command = ask_command();
@@ -133,10 +137,10 @@ int main(void)
         switch (command) 
         {
             case 'A': // GAME OF LIFE
-                printInstructions("gameoflife");
                 
+                printInstructions("gameoflife");
                 // try to initialize board with x, y values.
-                if (allocateMemory(x, y) == true)
+                if (allocateMemory() == true)
                 {
                     startGameOfLife(time);
                     deAllocateMemory();
@@ -146,11 +150,10 @@ int main(void)
                 else
                 {
                     // Print instructions to user and do not break to go to settings.
-                    printf("%sPlease modify settings:%s\n", RED, RESET_COLOR);
+                    printf("%sFailed. Please modify settings:%s\n", RED, RESET_COLOR);
                 }
             case 'B': // SETTINGS
                 modifySettings();
-                command = 'H';
                 break;
             case 'C': // SHOW HIGHSCORE
                 printf("show highscore");
@@ -186,7 +189,7 @@ int main(void)
  DESCRIPTION: returns user character input 
 	Input: -
 	Output: c[0], '?'
-  Used global variables: Colors
+  Used global variables: -
  REMARKS when using this function: expects empty input buffer at first. User can only enter 1 character
 *********************************************************************/
 char ask_command(void)
@@ -239,12 +242,6 @@ int ask_integer(void)
 void startGameOfLife(int delay_time)
 {
     int actions = 0, action_count = 0, gen = 0;
-
-    board[1][1].current = 1;
-    board[1][2].current = 1;
-    board[2][2].current = 1;
-    board[3][3].current = 1;
-    board[4][3].current = 1;
     
     // Print state until there is no future
     while ((actions = calculateFuture()) != 0)
@@ -253,6 +250,16 @@ void startGameOfLife(int delay_time)
         printState();
         gen++;
         action_count+=actions;
+
+        // Check for user input to exit game
+        if (kbhit()) {
+            char input = getchar();
+            if (input == 'q' || input == 'Q') {
+                printf("Exiting game.\n");
+                return;
+            }
+        }
+
         delay(delay_time);
     }
     printf("\n----FINAL STATE----\n");
@@ -275,9 +282,9 @@ int calculateFuture(void)
     int x, y, actions = 0;
 
     // Iterate through all cells
-    for (y = 0; y < *xy_size[1]; y++)
+    for (y = 0; y < xy_size[1]; y++)
     {
-        for (x = 0; x < *xy_size[0]; x++)
+        for (x = 0; x < xy_size[0]; x++)
         {
             // if cell is alive, only keep alive if it has 2 or 3 neighbours
             if (board[x][y].current == 1)
@@ -336,14 +343,14 @@ int countNeighbours(int cellx, int celly)
     // Check x, and set within bounds
     if (x_within[0] < 0)
         x_within[0] = 0;
-    if (x_within[1] >= *xy_size[0])
-        x_within[1] = *xy_size[0] - 1;
+    if (x_within[1] >= xy_size[0])
+        x_within[1] = xy_size[0] - 1;
 
     // Check if y, and set within bounds
     if (y_within[0] < 0)
         y_within[0] = 0;
-    if (y_within[1] >= *xy_size[1])
-        y_within[1] = *xy_size[1] - 1;
+    if (y_within[1] >= xy_size[1])
+        y_within[1] = xy_size[1] - 1;
 
 
     // Iterate over all neighbors and count the live ones
@@ -374,7 +381,7 @@ int countNeighbours(int cellx, int celly)
  DESCRIPTION: displays/prints game state to user, and updates future state.
 	Input: -
 	Output: -
-  Used global variables: *xy_size
+  Used global variables: xy_size
  REMARKS when using this function: Cell's future should be calculated beforehand.
 *********************************************************************/
 void printState()
@@ -382,9 +389,9 @@ void printState()
     int x, y;
 
     // Iterate through all cells and print their current status
-    for (y = 0; y < *xy_size[0]; y++)
+    for (y = 0; y < xy_size[1]; y++)
     {
-        for (x = 0; x < *xy_size[1]; x++)
+        for (x = 0; x < xy_size[0]; x++)
         {
             if (board[x][y].current == 1)
             {
@@ -398,7 +405,7 @@ void printState()
             // Above we print current state, and update to the next state.
             board[x][y].current = board[x][y].future;
             // reset color
-            board[x][y].color = "default";
+            board[x][y].color = 'd';
         }
         printf("\n");
     }
@@ -409,13 +416,13 @@ void printState()
  DESCRIPTION: Prints 'O' or '.' with the correct color 
 	Input: alive_or_dead, color
 	Output: -
-  Used global variables: colors
+  Used global variables: -
  REMARKS when using this function: input cell state and color, function prints character
 *********************************************************************/
 void printCellState(bool alive_or_dead, char color) 
 {
     // error check color just in case
-    if (color != NULL)
+    if (color != '\0')
     {
         if (color == 'r')
         {
@@ -430,11 +437,11 @@ void printCellState(bool alive_or_dead, char color)
             printf("%s", RESET_COLOR);
         }
         // syntax: variable ? 'true' : 'false' || same as: if (variable == 1) .. else ..
-        printf("%c", alive_or_dead ? 'O' : '.');
+        printf("%c", alive_or_dead ? alive_char : dead_char);
     }
     else
     {
-        printf("%c", alive_or_dead ? 'O' : '.');
+        printf("%c", alive_or_dead ? alive_char : dead_char);
     }
     printf("%s", RESET_COLOR);
 }
@@ -461,7 +468,7 @@ void delay(int milliseconds)
  DESCRIPTION: prints instructions to user
 	Input: string
 	Output: -
-  Used global variables: colors
+  Used global variables: -
  REMARKS when using this function: string is passed to print corresponding instructions ("state")
 *********************************************************************/
 void printInstructions(char state[])
@@ -497,7 +504,9 @@ void printInstructions(char state[])
     else if (state == "settingshelp")
     {
         printf("%sB) Read gamestate from file\n", MAGENTA);
-        printf("\t%s- use: %s\n\n", YELLOW, MAGENTA);
+        printf("\t%s- use: file longest column = board column, file rows = board rows\n", YELLOW);
+        printf("\t- cell state: The most occured character = dead, second most occured = alive\n");
+        printf("\t\t- NOTE: default to 'o' = alive, '.' = dead, if they are the most/2most occured\n\n%s", MAGENTA);
         printf("C) Paste gamestate as string\n");
         printf("\t%s- use: paste string with ctrl+v or shift+insert\n", YELLOW);
         printf("\t- Format: (note: end with 'e')\n");
@@ -513,29 +522,22 @@ void printInstructions(char state[])
 
 /*********************************************************************
  NAME: allocateMemory
- DESCRIPTION: Dynamically allocates memory for global: struct cell and *xy_size
+ DESCRIPTION: Dynamically allocates memory for global: struct cell and xy_size
 	Input: 
 	Output: -
-  Used global variables: *xy_size, **board
+  Used global variables: xy_size, **board, alive_cells
  REMARKS when using this function: takes size of the board as arguments, and uses malloc to initialize/set each value
 *********************************************************************/
-bool allocateMemory(int x_size, int y_size)
+bool allocateMemory()
 {
     // Check that x and y values fall between a certain range.
-    if (x_size < 1 || y_size < 1 || x_size > 1000 || y_size > 1000)
+    if (xy_size[0] < 1 || xy_size[1] < 1 || xy_size[0] > 100 || xy_size[1] > 100)
         return false;
-
-    // Allocate for integer size
-    xy_size[0] = (int*) malloc(sizeof(int));
-    xy_size[1] = (int*) malloc(sizeof(int));
-
-    *xy_size[0] = x_size + 1;
-    *xy_size[1] = y_size + 1;
 
     int i, j;
 
     // Allocate memory for the board columns. Size * struct cell size
-    board = (struct cell**) malloc(*xy_size[0] * sizeof(struct cell*));
+    board = (struct cell**) malloc(xy_size[0] * sizeof(struct cell*));
 
     // Handle error
     if (board == NULL) 
@@ -545,10 +547,12 @@ bool allocateMemory(int x_size, int y_size)
         fprintf(stderr, "Error: Failed to allocate memory for board\n");
         return false;
     }
-    for (int i = 0; i < *xy_size[0]; i++) 
+
+    // Iterate through rows
+    for (int i = 0; i < xy_size[0]; i++) 
     {
-        // Iterate through rows
-        board[i] = (struct cell*) malloc(*xy_size[1] * sizeof(struct cell));
+        // allocate memory
+        board[i] = (struct cell*) malloc(xy_size[1] * sizeof(struct cell));
         // Handle error
         if (board[i] == NULL) 
         {
@@ -558,14 +562,18 @@ bool allocateMemory(int x_size, int y_size)
     }
 
     // Initialize the board
-    for (int i = 0; i < *xy_size[0]; i++) 
+    for (int i = 0; i < xy_size[1]; i++) 
     {
-        for (int j = 0; j < *xy_size[1]; j++) 
+        for (int j = 0; j < xy_size[0]; j++) 
         {
-            // Allocate for each parameter.
-            board[i][j].current = 0;
-            board[i][j].future = 0;
-            board[i][j].color = malloc(sizeof(char));
+            if (alive_cells[j][i] == 1)
+                board[j][i].current = 1;
+            else
+                board[j][i].current = 0;
+
+            // Allocate for each other parameter too.
+            board[j][i].future = 0;
+            board[j][i].color = 'd';
         }
     }
 
@@ -577,7 +585,7 @@ bool allocateMemory(int x_size, int y_size)
  DESCRIPTION: deallocates memory
 	Input: -
 	Output: -
-  Used global variables: *xy_size, **board
+  Used global variables: xy_size, **board
  REMARKS when using this function: deallocates memory created in allocateMemory()
 *********************************************************************/
 void deAllocateMemory(void)
@@ -585,15 +593,12 @@ void deAllocateMemory(void)
     int i;
 
     /* Free memory for board */
-    for (i = 0; i < *xy_size[0]; i++) 
+    for (i = 0; i < xy_size[0]; i++) 
     {
         free(board[i]);
     }
     free(board);
 
-    /* Free memory for xy_size */
-    free(xy_size[0]);
-    free(xy_size[1]);
 }
 
 /*********************************************************************
@@ -634,13 +639,16 @@ void modifySettings(void)
                 printInstructions("settingshelp");
                 break;
             case 'B': // READ FILE
-                gameSettings("file");
+                if (readGameFromFile() == 1)
+                    printf("%sFile read and game initialized *thumbs up*", GREEN);
+                else
+                    printf("%sSomething went wrong :(%s", RED, RESET_COLOR);
                 break;
             case 'C': // PASTE STRING
-                gameSettings("string");
+
                 break;
             case 'D': // RANDOMIZE
-                gameSettings("random");
+
                 break;
             case '?': // INPUT BUFFER EXCEEDED
                 printf("%sInput buffer exceeded. Please try again.", RED);
@@ -660,38 +668,135 @@ void modifySettings(void)
 }
 
 /*********************************************************************
- NAME: gameSettings
- DESCRIPTION: 
-	Input: 
-	Output: -
-  Used global variables: -
- REMARKS when using this function: -
-*********************************************************************/
-void gameSettings(char string[])
-{
-    if (string == "file")
-    {
-        readGameFromFile();
-    }
-    else if (string == "random")
-    {
-
-    }
-    else if (string == "string")
-    {
-
-    }
-}
-
-/*********************************************************************
  NAME: readGameFromFile
- DESCRIPTION: 
-	Input: 
-	Output: -
-  Used global variables: -
- REMARKS when using this function: -
+ DESCRIPTION: Reads board state and size from file
+	Input: -
+	Output: TRUE, FALSE
+  Used global variables: xy_size, alive_cells
+ REMARKS when using this function: Default to: alive char 'o', dead char '.', if they appear in file.
+                                    Else most frequent character = alive, 2most = dead.
+                                    x size = longest line on file, y size = number of rows in file
 *********************************************************************/
-void readGameFromFile(void)
+bool readGameFromFile(void)
 {
+    FILE *file;
+
+    // Ask for filename
+    char filename[100];
+    fgets(filename, 100, stdin);
+    if (strchr(filename, '\n') != NULL)
+        filename[strcspn(filename, "\n")] = '\0';
+
+    // Read from file and check for error
+    file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("%sError opening file:%s %s", RED, RESET_COLOR, filename);
+        return false;
+    }
     
+    // y = rows, x = line lenght, buffer = line content, filecontent = {row}{content}
+    int ascii[256] = {0};
+    int rows = 0, i = 0, x = 0;
+    char filecontent[100][100] = {0};
+    char c;
+
+    // Read file character by character
+    while ((c = fgetc(file)) != EOF)
+    {
+        // Add this character to the file content array
+        filecontent[i][rows] = c;
+
+        // Check each line
+        if (c == '\n')
+        {
+            // Check if this is the longest row so far
+            if (i > x)
+                x = i;
+
+            i = 0;
+            rows++;
+        }
+        else
+        {
+            // Increment count for this ASCII character, and i (line character count)
+            ascii[c]++;
+            i++;
+        }
+    }
+
+    // add last line and check if last line is longest
+    rows++;
+    if (i > x)
+        x = i;
+
+    fclose(file);
+
+    int max = 0, max2 = 0, j;
+    char most_character, most_character2;
+
+    // Iterate through ASCII range
+    for (i = 0; i < 256; i++)
+    {
+        // look at each ASCII character (ascii[i]), and check which has the highest value (= which occured the most) 
+        // Also don't count newlines
+        if (ascii[i] > max && ascii[i] != '\n')
+        {
+            max = ascii[i];
+            most_character = (char)i;
+        }
+        // If it wasn't the highest value, check for 2nd highest value
+        else if (ascii[i] > max2)
+        {
+            max2 = ascii[i];
+            most_character2 = (char)i;
+        }
+    }
+
+    // Set global characters to file most and second most read characters
+    alive_char = (char)most_character;
+    dead_char = (char)most_character2;
+    xy_size[0] = x;
+    xy_size[1] = rows;
+
+    printf("Board x: %d\n", x);
+    printf("Board y: %d\n", rows);
+    
+    // default to 'o' = alive, '.' = dead, if . / o / O appear in file
+    if (most_character == '.' || most_character == 'o' || most_character == 'O' ||
+    most_character2 == '.' || most_character2 == 'o' || most_character2 == 'O') 
+    {
+        most_character = 'o';
+        alive_char = 'o';
+        dead_char = '.';
+        printf("Alive character defaulted to: o\n");
+        printf("Dead character defaulted to: .\n");
+    }
+    else
+    {
+        printf("Alive character is: %c\n", most_character);
+        printf("Dead character is: %c\n", most_character2);
+    }
+
+    
+    // Row
+    for (i = 0; i < rows; i++)
+    {
+        // column
+        for (j = 0; j < x; j++)
+        {
+            // Set alive states to corresponding positions
+            if (filecontent[j][i] == most_character)
+            {
+                printf("\nalive_cells[%d][%d] = 1", j, i);
+                alive_cells[j][i] = 1;
+            }
+            else
+            {
+                alive_cells[j][i] = 0;
+            }
+        }
+    }
+
+    return true;
 }
