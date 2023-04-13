@@ -54,6 +54,12 @@
  #include <string.h>
  #include <ctype.h>
 
+ #define HAVE_NCURSES_H // Delete this line if you don't want to use ncurses.h library
+ #ifdef HAVE_NCURSES_H
+ #include <ncurses.h>
+ #endif
+
+
 /*-------------------------------------------------------------------*
 *    GLOBAL VARIABLES AND CONSTANTS                                  *
 *--------------------------------------------------------------------*/
@@ -68,6 +74,8 @@
  #define YELLOW "\033[0;33m"
  #define MAGENTA "\033[0;35m"
  #define RESET_COLOR "\033[0m"
+ 
+ 
 
 /* Global variables */
  int xy_size[2] = {10, 10}; // BOARD SIZE. [0] = x, [1] = y, maxsize 100
@@ -217,7 +225,7 @@ char ask_command(void)
 /*********************************************************************
  NAME: ask_integer
  DESCRIPTION: returns user integer input 
-	Input: -
+	Input: - 
 	Output: integer
   Used global variables: -
  REMARKS when using this function: asks user for integer value
@@ -241,32 +249,31 @@ int ask_integer(void)
 *********************************************************************/
 void startGameOfLife(int delay_time)
 {
+    #ifdef HAVE_NCURSES_H
+    initscr();
+    #endif
+
     int actions = 0, action_count = 0, gen = 0;
     
     // Print state until there is no future
     while ((actions = calculateFuture()) != 0)
     {
-        printf("\n");
         printState();
         gen++;
         action_count+=actions;
 
-        // Check for user input to exit game
-        if (kbhit()) {
-            char input = getchar();
-            if (input == 'q' || input == 'Q') {
-                printf("Exiting game.\n");
-                return;
-            }
-        }
-
         delay(delay_time);
     }
+    #ifdef HAVE_NCURSES_H
+    getch();
+    endwin();
+    #else
     printf("\n----FINAL STATE----\n");
     printState();
 
     // syntax: variable ? 'true' : 'false' || same as: if (variable == 1) .. else ..
     printf("Game ended. You survived %d generation(s). Total cell deaths/respawns were: %d", gen ? gen + 1: gen, action_count);
+    #endif
 }
 
 /*********************************************************************
@@ -386,9 +393,15 @@ int countNeighbours(int cellx, int celly)
 *********************************************************************/
 void printState()
 {
+    #ifdef HAVE_NCURSES_H
+    clear();
+    printw("\n");
+    #else
+    printf("\n");
+    #endif
+
     int x, y;
 
-    // Iterate through all cells and print their current status
     for (y = 0; y < xy_size[1]; y++)
     {
         for (x = 0; x < xy_size[0]; x++)
@@ -407,8 +420,17 @@ void printState()
             // reset color
             board[x][y].color = 'd';
         }
+        #ifdef HAVE_NCURSES_H
+        printw("\n");
+        #else
         printf("\n");
+        #endif
     }
+
+    #ifdef HAVE_NCURSES_H
+    refresh();
+    #endif
+
 }
 
 /*********************************************************************
@@ -421,29 +443,47 @@ void printState()
 *********************************************************************/
 void printCellState(bool alive_or_dead, char color) 
 {
-    // error check color just in case
-    if (color != '\0')
+    #ifdef HAVE_NCURSES_H
+    start_color();
+
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    init_pair(2, COLOR_GREEN, COLOR_BLACK);
+    init_pair(3, COLOR_YELLOW, COLOR_BLACK);
+
+    switch(color)
     {
-        if (color == 'r')
-        {
+        case 'r':
+            attron(COLOR_PAIR(1));
+            break;
+        case 'g':
+            attron(COLOR_PAIR(2));
+            break;
+        default:
+            attron(COLOR_PAIR(1));
+            break;
+    }
+
+    printw("%c", alive_or_dead ? alive_char : dead_char);
+
+    #else
+    switch(color)
+    {
+        case 'r':
             printf("%s", RED);
-        }
-        else if (color == 'g')
-        {
+            break;
+        case 'g':
             printf("%s", GREEN);
-        }
-        else
-        {
+            break;
+        default:
             printf("%s", RESET_COLOR);
-        }
-        // syntax: variable ? 'true' : 'false' || same as: if (variable == 1) .. else ..
-        printf("%c", alive_or_dead ? alive_char : dead_char);
+            break;
     }
-    else
-    {
-        printf("%c", alive_or_dead ? alive_char : dead_char);
-    }
+
+    // syntax: variable ? 'true' : 'false' || same as: if (variable == 1) .. else ..
+    printf("%c", alive_or_dead ? alive_char : dead_char);
+
     printf("%s", RESET_COLOR);
+    #endif
 }
 
 /*********************************************************************
@@ -644,7 +684,7 @@ void modifySettings(void)
                 else
                     printf("%sSomething went wrong :(%s", RED, RESET_COLOR);
                 break;
-            case 'C': // PASTE STRING
+            case 'C': // MANUAL
 
                 break;
             case 'D': // RANDOMIZE
@@ -693,6 +733,13 @@ bool readGameFromFile(void)
     {
         printf("%sError opening file:%s %s", RED, RESET_COLOR, filename);
         return false;
+    }
+
+    // Check file extension .txt only
+    char *ext = strrchr(filename, '.');
+    if (strcmp(ext, ".txt") != 0) {
+        printf("Only txt files are allowed\n");
+        return 0;
     }
     
     // y = rows, x = line lenght, buffer = line content, filecontent = {row}{content}
@@ -788,7 +835,6 @@ bool readGameFromFile(void)
             // Set alive states to corresponding positions
             if (filecontent[j][i] == most_character)
             {
-                printf("\nalive_cells[%d][%d] = 1", j, i);
                 alive_cells[j][i] = 1;
             }
             else
