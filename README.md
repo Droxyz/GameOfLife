@@ -1,6 +1,6 @@
 # Game of life
 
-###Rules
+### Rules
 - Each cell with one or no neighbours' dies, as if by loneliness
 - Each cell with four or more neighbours dies, as if by overpopulation.
 - Each cell with two or three neighbours survives.
